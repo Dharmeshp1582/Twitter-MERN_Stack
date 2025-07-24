@@ -10,7 +10,7 @@ userRouter.post("/login", login)
 userRouter.get("/logout", logout)
 userRouter.put("/bookmark/:id",isAuthenticated, bookmarkTweet)
 userRouter.get("/profile/:id",isAuthenticated, getMyProfile)
-userRouter.get("/other-user/:id",isAuthenticated, getOtherUsers)
+userRouter.get("/otheruser/:id",isAuthenticated, getOtherUsers)
 userRouter.put("/follow/:id",isAuthenticated, follow)
 userRouter.put("/unfollow/:id",isAuthenticated, unfollow)
 

@@ -1,10 +1,12 @@
 import React from 'react'
 import Body from './route/Body'
+import { Toaster } from 'react-hot-toast'
 
 const App = () => {
   return (
-    <div className=''>
+    <div>
       <Body/>
+      <Toaster />
     </div>
   )
 }

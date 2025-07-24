@@ -1,44 +1,100 @@
-import Tweet from "../models/tweet.model.js";
+import { Tweet } from "../models/tweet.model.js";
 import User from "../models/user.model.js";
 
 export const createTweet = async (req, res) => {
   try {
     const { description, id } = req.body;
-    console.log(req.user);
-    if (!description) {
-      return res
-        .status(400)
-        .json({ message: "Description is required", success: false });
+    if (!description || !id) {
+      return res.status(401).json({
+        message: "Fields are required.",
+        success: false,
+      });
     }
-
-    const tweet = await Tweet.create({ description, userId: req.user.id });
-    console.log("tweet created:-", tweet);
-    return res
-      .status(201)
-      .json({ message: "Tweet created successfully", success: true, tweet });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Internal server error",
-      success: false,
-      error: error.message,
+    const user = await User.findById(id).select("-password");
+    await Tweet.create({
+      description,
+      userId: id,
+      userDetails: user,
     });
+    return res.status(201).json({
+      message: "Tweet created successfully.",
+      success: true,
+    });
+  } catch (error) {
+    console.log(error);
   }
 };
-
-//delete tweet
 export const deleteTweet = async (req, res) => {
   try {
     const { id } = req.params;
-    const tweet = await Tweet.findByIdAndDelete(id);
-    return res
-      .status(200)
-      .json({ message: "Tweet deleted successfully", success: true, tweet });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Internal server error",
-      success: false,
-      error: error.message,
+    await Tweet.findByIdAndDelete(id);
+    return res.status(200).json({
+      message: "Tweet deleted successfully.",
+      success: true,
     });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+export const likeOrDislike = async (req, res) => {
+  try {
+    const loggedInUserId = req.body.id;
+    const tweetId = req.params.id;
+    const tweet = await Tweet.findById(tweetId);
+    if (tweet.like.includes(loggedInUserId)) {
+      // dislike
+      await Tweet.findByIdAndUpdate(tweetId, {
+        $pull: { like: loggedInUserId },
+      });
+      return res.status(200).json({
+        message: "User disliked your tweet.",
+      });
+    } else {
+      // like
+      await Tweet.findByIdAndUpdate(tweetId, {
+        $push: { like: loggedInUserId },
+      });
+      return res.status(200).json({
+        message: "User liked your tweet.",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+  }
+};
+export const getAllTweets = async (req, res) => {
+  // loggedInUser ka tweet + following user tweet
+  try {
+    const id = req.params.id;
+    const loggedInUser = await User.findById(id);
+    const loggedInUserTweets = await Tweet.find({ userId: id });
+    const followingUserTweet = await Promise.all(
+      loggedInUser.following.map((otherUsersId) => {
+        return Tweet.find({ userId: otherUsersId });
+      })
+    );
+    return res.status(200).json({
+      tweets: loggedInUserTweets.concat(...followingUserTweet),
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+export const getFollowingTweets = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const loggedInUser = await User.findById(id);
+    const followingUserTweet = await Promise.all(
+      loggedInUser.following.map((otherUsersId) => {
+        return Tweet.find({ userId: otherUsersId });
+      })
+    );
+    return res.status(200).json({
+      tweets: [].concat(...followingUserTweet),
+    });
+  } catch (error) {
+    console.log(error);
   }
 };
 
@@ -65,89 +121,18 @@ export const updateTweet = async (req, res) => {
   }
 };
 
-//toggle likes or dislikes
-
-export const likeOrDislike = async (req, res) => {
+export const getLikedTweets = async (req, res) => {
   try {
-    const loggedInUser = req.user.id;
-    const tweetId = req.params.id;
-    const tweet = await Tweet.findById(tweetId);
-    if (!tweet) {
-      return res
-        .status(404)
-        .json({ message: "Tweet not found", success: false });
-    }
-    let updatedTweet;
-    if (tweet.like.includes(loggedInUser)) {
-      //dislike
-      updatedTweet = await Tweet.findByIdAndUpdate(
-        tweetId,
-        { $pull: { like: loggedInUser } },
-        { new: true }
-      );
-      return res.status(200).json({
-        message: "Tweet disliked successfully",
-        success: true,
-        tweet: updatedTweet,
-      });
-    } else {
-      //like
-      updatedTweet = await Tweet.findByIdAndUpdate(
-        tweetId,
-        { $push: { like: loggedInUser } },
-        { new: true }
-      );
-      return res.status(200).json({
-        message: "Tweet liked successfully",
-        success: true,
-        tweet: updatedTweet,
-      });
-    }
-  } catch (error) {
-    return res.status(500).json({
-      message: "Internal server error",
-      success: false,
-      error: error.message,
+    const id = req.params.id; // user id
+    const likedTweets = await Tweet.find({ like: id });
+    return res.status(200).json({
+      tweets: likedTweets,
     });
-  }
-};
-
-
-//get all tweets
-
-export const getAllTweets = async (req,res) => {
-  // loggedInUser ka tweet + following user tweet
-  try {
-      const id = req.params.id;
-      const loggedInUser = await User.findById(id);
-      const loggedInUserTweets = await Tweet.find({userId:id});
-      const followingUserTweet = await Promise.all(loggedInUser.following.map((otherUsersId)=>{
-          return Tweet.find({userId:otherUsersId});
-      }));
-      return res.status(200).json({
-          tweets:loggedInUserTweets.concat(...followingUserTweet),
-      })
   } catch (error) {
-      console.log(error);
-  }
-}
-
-//get following tweets
-export const getFollowingTweets = async (req,res) =>{
-  try {
-      const id = req.params.id;
-      const loggedInUser = await User.findById(id); //loggedInUser is the user who is logged in
-      const followingUserTweet = await Promise.all(loggedInUser.following.map((otherUsersId)=>{
-          return Tweet.find({userId:otherUsersId});
-      }));
-      return res.status(200).json({
-          tweets:[].concat(...followingUserTweet)
-      });
-  } catch (error) {
+    console.log(error);
     return res.status(500).json({
-      message: "Internal server error",
+      message: "Failed to fetch liked tweets.",
       success: false,
-      error: error.message,
     });
   }
 };

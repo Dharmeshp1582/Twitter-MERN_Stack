@@ -1,7 +1,8 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import Tweet from "../models/tweet.model.js";
+import { Tweet } from "../models/tweet.model.js";
+
 
 export const register = async (req, res) => {
   try {
@@ -32,7 +33,7 @@ export const register = async (req, res) => {
     // console.log("user created:-", user);
 
     return res.status(201).json({
-      message: "User created successfully",
+      message: "Account created successfully",
       success: true,
       user,
     });
@@ -86,8 +87,7 @@ export const login = async (req, res) => {
       .json({
         message: `Welcome back ${user.name}`,
         success: true,
-        user,
-        token,
+        user
       });
   } catch (error) {
     return res.status(500).json({
